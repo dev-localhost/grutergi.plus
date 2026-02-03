@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>그루터기 출석부</title>
+
+    <!-- 아이콘 설정 -->
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href="site.webmanifest">
+
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+</head>
+<body>
+
+    <div class="toolbar">
+        <img src="favicon-96x96.png" alt="logo" class="toolbar-logo">
+        <h1>그루터기 출석부</h1>
+        <button class="icon-btn" onclick="openSettings()" title="명단 설정">
+            <span class="material-symbols-rounded">settings</span>
+        </button>
+    </div>
+
+    <div class="container">
+        <div id="current-date" class="date-display"></div>
+
+        <div class="search-container">
+            <input type="text" id="etSearch" placeholder="이름 또는 초성 입력" autocomplete="off" aria-label="이름 또는 초성 검색">
+            <div id="suggestion-box" class="suggestion-box"></div>
+        </div>
+
+        <div class="stats-card">
+            <div class="stat-item">
+                <span class="count total-count" id="tvAttendanceCount">0</span>
+                <span class="label">전체</span>
+            </div>
+            <div class="stat-item">
+                <span class="count male-color" id="tvMaleCount">0</span>
+                <span class="label">남</span>
+            </div>
+            <div class="stat-item">
+                <span class="count female-color" id="tvFemaleCount">0</span>
+                <span class="label">여</span>
+            </div>
+        </div>
+
+        <div class="section-title male-color">남</div>
+        <div id="cgMalePresent" class="chip-group"></div>
+
+        <div class="section-title female-color">여</div>
+        <div id="cgFemalePresent" class="chip-group"></div>
+    </div>
+
+    <div class="fab-container">
+        <button class="btn-round btn-reset" onclick="confirmReset()" title="출석 초기화">
+            <span class="material-symbols-rounded">refresh</span>
+        </button>
+        <button class="btn-round btn-share" onclick="shareAttendance()" title="공유">
+            <span class="material-symbols-rounded">share</span>
+        </button>
+    </div>
+
+    <!-- 신규 등록 모달 (성별 선택용) -->
+    <div id="addMemberModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title" id="modalTitle" style="font-size:18px; font-weight:bold; margin-bottom:12px;">성별 선택</div>
+            <div class="modal-body" id="modalBody" style="margin-bottom:20px; color:#666;">명단에 추가할 인원의 성별을 선택해주세요.</div>
+            <div class="modal-btns">
+                <button class="btn-blue" onclick="processAddMember(true)">남</button>
+                <button class="btn-pink" onclick="processAddMember(false)">여</button>
+                <button class="btn-gray" onclick="closeModal('addMemberModal')">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 공통 확인 모달 -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title" id="confirmTitle" style="font-size:18px; font-weight:bold; margin-bottom:12px;">확인</div>
+            <div class="modal-body" id="confirmBody" style="margin-bottom:20px; color:#666;">내용</div>
+            <div class="modal-btns">
+                <button id="btnConfirmAction" class="btn-pink">확인</button>
+                <button class="btn-gray" onclick="closeModal('confirmModal')">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 명단 설정 사이드 뷰 (오른쪽에서 슬라이드) -->
+    <div id="settingsSideView" class="side-view">
+        <div class="side-header">
+            <button class="icon-btn" onclick="closeSideView()">
+                <span class="material-symbols-rounded">arrow_forward_ios</span>
+            </button>
+            <div class="side-title">명단 관리</div>
+            <div style="width: 40px;"></div>
+        </div>
+
+        <div class="settings-content">
+            <div class="settings-add-box">
+                <textarea id="etSettingsAddNames" placeholder="추가할 이름들을 입력하세요&#10;(쉼표, 공백, 줄바꿈으로 구분)" aria-label="추가할 명단 입력"></textarea>
+                <button class="btn-main" onclick="startBatchAdd()">추가</button>
+            </div>
+
+            <div id="settingsStats" class="stats-card" style="margin-bottom: 24px;">
+                <!-- 명단 통계가 들어갈 자리 -->
+            </div>
+
+            <div id="settingsMemberListContainer">
+                <!-- 초성별/성별 그룹화된 명단이 칩 형태로 들어감 -->
+            </div>
+
+            <div style="margin-top: 40px; display: flex; flex-direction: column; gap: 12px; margin-bottom: 40px;">
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-gray-outline" style="flex: 1; color: var(--primary-color); border-color: var(--primary-color);" onclick="clearMembersByGender(true)">남자 전체 삭제</button>
+                    <button class="btn-gray-outline" style="flex: 1; color: var(--secondary-color); border-color: var(--secondary-color);" onclick="clearMembersByGender(false)">여자 전체 삭제</button>
+                </div>
+                <button class="btn-black-outline" onclick="clearAllMembers()">전체 삭제</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
