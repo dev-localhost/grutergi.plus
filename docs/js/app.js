@@ -603,7 +603,7 @@ function confirmCellReset() {
 function shareCellAttendance() {
     const displayName = cellName.trim() || "OOO";
     const dateArr = selectedDate.split('-');
-    const dateStr = `${dateArr[0]}년 ${parseInt(dateArr[1])}월 ${parseInt(dateArr[2])}일`;
+    const dateStr = `${parseInt(dateArr[1])}/${parseInt(dateArr[2])}`;
 
     const meetingList = members
         .filter(m => cellAttendance[m.id]?.meeting)
@@ -702,7 +702,7 @@ function renderSettingsList() {
 
 function shareAttendance() {
     const dateArr = selectedDate.split('-');
-    const dateStr = `${dateArr[0]}년 ${parseInt(dateArr[1])}월 ${parseInt(dateArr[2])}일`;
+    const dateStr = `${parseInt(dateArr[1])}/${parseInt(dateArr[2])}`;
 
     const maleList = members.filter(m => m.isMale && attendance.has(m.id)).map(m => m.name).sort();
     const femaleList = members.filter(m => !m.isMale && attendance.has(m.id)).map(m => m.name).sort();
