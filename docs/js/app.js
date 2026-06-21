@@ -1,10 +1,18 @@
 let members = JSON.parse(localStorage.getItem('grutergi_members')) || [];
 let attendance = new Set(JSON.parse(localStorage.getItem('grutergi_attendance')) || []);
+let cellAttendance = JSON.parse(localStorage.getItem('grutergi_cell_attendance')) || {};
+let cellActiveMemberIds = new Set(JSON.parse(localStorage.getItem('grutergi_cell_active_members')) || []);
+let cellName = localStorage.getItem('grutergi_cell_name') || "";
+
 let pendingNames = []; // 일괄 추가를 위한 배열
 let isAutoAttend = false; // 검색을 통한 추가인지 여부
+let currentView = 'stump';
 
 const etSearch = document.getElementById('etSearch');
+const etCellSearch = document.getElementById('etCellSearch');
+const etCellName = document.getElementById('etCellName');
 const suggestionBox = document.getElementById('suggestion-box');
+const cellSuggestionBox = document.getElementById('cell-suggestion-box');
 const settingsSideView = document.getElementById('settingsSideView');
 
 // 초기화
@@ -12,6 +20,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const now = new Date();
     const dateStr = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일`;
     document.getElementById('current-date').innerText = dateStr;
+    document.getElementById('cell-current-date').innerText = dateStr;
+
+    if (etCellName) {
+        etCellName.value = cellName;
+        etCellName.addEventListener('input', () => {
+            cellName = etCellName.value;
+            saveData();
+        });
+    }
+
     updateUI();
 
     etSearch.addEventListener('input', handleAutocomplete);
@@ -22,12 +40,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    etCellSearch.addEventListener('input', handleCellAutocomplete);
+    etCellSearch.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleCellSearch();
+            hideCellSuggestions();
+        }
+    });
+
     document.addEventListener('click', (e) => {
         if (!etSearch.contains(e.target)) {
             hideSuggestions();
         }
+        if (etCellSearch && !etCellSearch.contains(e.target)) {
+            hideCellSuggestions();
+        }
     });
 });
+
+function switchView(view) {
+    currentView = view;
+    document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+
+    const toolbarTitle = document.getElementById('toolbar-title');
+
+    if (view === 'stump') {
+        document.getElementById('stump-view').classList.add('active');
+        document.getElementById('tab-stump').classList.add('active');
+        toolbarTitle.innerText = "그루터기 출석부";
+    } else {
+        document.getElementById('cell-view').classList.add('active');
+        document.getElementById('tab-cell').classList.add('active');
+        toolbarTitle.innerText = "셀 출석부";
+        renderCellList();
+    }
+}
 
 function handleAutocomplete() {
     const query = etSearch.value.trim();
@@ -165,7 +213,12 @@ function processAddMember(isMale) {
                 isMale: isMale
             };
             members.push(newMember);
-            if (isAutoAttend) attendance.add(newMember.id);
+            if (isAutoAttend) {
+                attendance.add(newMember.id);
+            }
+            if (currentAddContext === 'cell') {
+                cellActiveMemberIds.add(newMember.id);
+            }
             addedCount++;
         }
     });
@@ -173,12 +226,17 @@ function processAddMember(isMale) {
     saveData();
     updateUI();
 
-    if (!isAutoAttend) {
+    if (!isAutoAttend && currentAddContext !== 'cell') {
         document.getElementById('etSettingsAddNames').value = "";
         renderSettingsList();
     }
 
+    if (currentAddContext === 'cell') {
+        etCellSearch.value = "";
+    }
+
     closeModal('addMemberModal');
+    currentAddContext = 'stump'; // reset context
     if (addedCount > 0 && !isAutoAttend) {
         showToast(`${addedCount}명이 명단에 추가되었습니다.`);
     }
@@ -242,9 +300,20 @@ function confirmReset() {
 function saveData() {
     localStorage.setItem('grutergi_members', JSON.stringify(members));
     localStorage.setItem('grutergi_attendance', JSON.stringify(Array.from(attendance)));
+    localStorage.setItem('grutergi_cell_attendance', JSON.stringify(cellAttendance));
+    localStorage.setItem('grutergi_cell_active_members', JSON.stringify(Array.from(cellActiveMemberIds)));
+    localStorage.setItem('grutergi_cell_name', cellName);
 }
 
 function updateUI() {
+    if (currentView === 'stump') {
+        updateStumpUI();
+    } else {
+        renderCellList();
+    }
+}
+
+function updateStumpUI() {
     const maleGroup = document.getElementById('cgMalePresent');
     const femaleGroup = document.getElementById('cgFemalePresent');
     if (!maleGroup || !femaleGroup) return;
@@ -273,6 +342,175 @@ function updateUI() {
     document.getElementById('tvAttendanceCount').innerText = maleCount + femaleCount;
     document.getElementById('tvMaleCount').innerText = maleCount;
     document.getElementById('tvFemaleCount').innerText = femaleCount;
+}
+
+function handleCellAutocomplete() {
+    const query = etCellSearch.value.trim();
+    if (!query) {
+        hideCellSuggestions();
+        renderCellList();
+        return;
+    }
+
+    const matchingMembers = members.filter(m =>
+        !cellActiveMemberIds.has(m.id) && (m.name.includes(query) || getChosung(m.name).includes(query))
+    );
+
+    if (matchingMembers.length > 0) {
+        showCellSuggestions(matchingMembers);
+    } else {
+        hideCellSuggestions();
+    }
+    renderCellList();
+}
+
+function showCellSuggestions(suggestions) {
+    if (!cellSuggestionBox) return;
+    cellSuggestionBox.innerHTML = '';
+    suggestions.forEach(member => {
+        const item = document.createElement('div');
+        item.className = 'suggestion-item';
+        item.innerHTML = `
+            <div class="suggest-info">
+                <div class="gender-dot ${member.isMale ? 'male' : 'female'}"></div>
+                <span>${member.name}</span>
+            </div>
+        `;
+        item.onclick = () => selectCellSuggestion(member.id);
+        cellSuggestionBox.appendChild(item);
+    });
+    cellSuggestionBox.style.display = 'block';
+}
+
+function hideCellSuggestions() {
+    if (cellSuggestionBox) cellSuggestionBox.style.display = 'none';
+}
+
+function selectCellSuggestion(id) {
+    cellActiveMemberIds.add(id);
+    saveData();
+    etCellSearch.value = '';
+    hideCellSuggestions();
+    renderCellList();
+}
+
+function handleCellSearch() {
+    const query = etCellSearch.value.trim();
+    if (!query) return;
+
+    const matchingMembers = members.filter(m =>
+        m.name.includes(query) || getChosung(m.name).includes(query)
+    );
+
+    const notActive = matchingMembers.filter(m => !cellActiveMemberIds.has(m.id));
+
+    if (notActive.length === 1) {
+        selectCellSuggestion(notActive[0].id);
+    } else if (notActive.length > 1) {
+        showCellSuggestions(notActive);
+    } else {
+        if (matchingMembers.length > 0) {
+            showToast("이미 목록에 있는 이름입니다.");
+            etCellSearch.value = "";
+        } else {
+            pendingNames = [query];
+            isAutoAttend = false;
+            currentAddContext = 'cell';
+            showAddDialog(`'${query}' 신규 등록`, "명단에 없는 이름입니다. 성별을 선택해주세요.");
+        }
+    }
+}
+
+let currentAddContext = 'stump';
+
+function renderCellList() {
+    const listContainer = document.getElementById('cellMemberList');
+    if (!listContainer) return;
+
+    const query = etCellSearch.value.trim();
+
+    const activeMembers = members.filter(m => cellActiveMemberIds.has(m.id));
+    const filteredMembers = activeMembers
+        .filter(m => m.name.includes(query) || getChosung(m.name).includes(query))
+        .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+
+    listContainer.innerHTML = '';
+
+    let meetingCount = 0;
+    let pbsCount = 0;
+
+    filteredMembers.forEach(member => {
+        const data = cellAttendance[member.id] || { meeting: false, pbs: false };
+        if (data.meeting) meetingCount++;
+        if (data.pbs) pbsCount++;
+
+        const item = document.createElement('div');
+        item.className = 'cell-member-item';
+        item.innerHTML = `
+            <div class="cell-member-info">
+                <div class="gender-dot ${member.isMale ? 'male' : 'female'}"></div>
+                <span class="cell-member-name">${member.name}</span>
+            </div>
+            <div class="cell-checkboxes">
+                <div class="cell-check-btn ${data.meeting ? 'active' : ''}" onclick="toggleCellAttendance('${member.id}', 'meeting')">
+                    <div class="checkbox"><span class="material-symbols-rounded">check</span></div>
+                    <span class="label">셀모임</span>
+                </div>
+                <div class="cell-check-btn ${data.pbs ? 'active' : ''}" onclick="toggleCellAttendance('${member.id}', 'pbs')">
+                    <div class="checkbox"><span class="material-symbols-rounded">check</span></div>
+                    <span class="label">PBS</span>
+                </div>
+            </div>
+        `;
+        listContainer.appendChild(item);
+    });
+
+    document.getElementById('tvCellTotalCount').innerText = filteredMembers.length;
+    document.getElementById('tvCellMeetingCount').innerText = meetingCount;
+    document.getElementById('tvCellPbsCount').innerText = pbsCount;
+}
+
+function toggleCellAttendance(memberId, type) {
+    if (!cellAttendance[memberId]) {
+        cellAttendance[memberId] = { meeting: false, pbs: false };
+    }
+    cellAttendance[memberId][type] = !cellAttendance[memberId][type];
+    saveData();
+    renderCellList();
+}
+
+function confirmCellReset() {
+    showConfirmDialog("셀 출석 초기화", "셀 목록과 출석 기록을 모두 지우시겠습니까?\n(등록된 전체 명단은 유지됩니다)", () => {
+        cellAttendance = {};
+        cellActiveMemberIds.clear();
+        saveData();
+        renderCellList();
+        showToast("셀 출석 기록이 초기화되었습니다.");
+    });
+}
+
+function shareCellAttendance() {
+    const displayName = cellName.trim() || "OOO";
+
+    const meetingList = members
+        .filter(m => cellAttendance[m.id]?.meeting)
+        .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+        .map(m => m.name);
+
+    const pbsList = members
+        .filter(m => cellAttendance[m.id]?.pbs)
+        .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+        .map(m => m.name);
+
+    const text = `📍 [${displayName}]\n━━━━━━━━━━━━━━\n✅ 출석 (${meetingList.length}명)\n${meetingList.join(" ") || "없음"}\n\n📖 PBS (${pbsList.length}명)\n${pbsList.join(" ") || "없음"}`;
+
+    if (navigator.share) {
+        navigator.share({ text: text });
+    } else {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast("셀 출석 현황이 클립보드에 복사되었습니다.");
+        });
+    }
 }
 
 function renderSettingsList() {

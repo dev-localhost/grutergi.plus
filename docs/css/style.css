@@ -45,6 +45,129 @@ body {
     flex: 1;
 }
 
+.view-container {
+    display: none;
+}
+.view-container.active {
+    display: block;
+}
+
+.tab-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: var(--card-bg-color);
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: 0 -1px 0 var(--divider-color);
+    z-index: 1000;
+}
+
+.tab-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 500;
+    flex: 1;
+    cursor: pointer;
+}
+
+.tab-item.active {
+    color: var(--primary-color);
+}
+
+.tab-item .material-symbols-rounded {
+    font-size: 24px;
+    margin-bottom: 4px;
+}
+
+/* Cell Attendance Styles */
+.cell-member-list {
+    background: var(--card-bg-color);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 80px;
+}
+
+.cell-member-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--divider-color);
+}
+
+.cell-member-item:last-child {
+    border-bottom: none;
+}
+
+.cell-member-info {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cell-member-name {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.cell-checkboxes {
+    display: flex;
+    gap: 12px;
+}
+
+.cell-check-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.cell-check-btn .label {
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+
+.cell-check-btn .checkbox {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--divider-color);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.cell-check-btn.active .checkbox {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.cell-check-btn.active .label {
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+.cell-check-btn .checkbox .material-symbols-rounded {
+    font-size: 18px;
+    display: none;
+}
+
+.cell-check-btn.active .checkbox .material-symbols-rounded {
+    display: block;
+}
+
 .icon-btn {
     background: none; border: none; font-size: 24px; cursor: pointer; padding: 8px;
     color: var(--primary-color);
@@ -56,6 +179,26 @@ body {
 
 .date-display {
     font-size: 14px; color: var(--text-secondary); text-align: left; margin-bottom: 20px;
+}
+
+.cell-name-container {
+    margin-bottom: 16px;
+}
+
+#etCellName {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-size: 20px;
+    font-weight: 700;
+    padding: 0;
+    color: var(--text-primary);
+    outline: none;
+}
+
+#etCellName::placeholder {
+    color: var(--divider-color);
+    font-weight: 500;
 }
 
 .search-container { position: relative; margin-bottom: 24px; }

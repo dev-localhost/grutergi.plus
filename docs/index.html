@@ -17,50 +17,106 @@
 
     <div class="toolbar">
         <img src="favicon-96x96.png" alt="logo" class="toolbar-logo">
-        <h1>그루터기 출석부</h1>
+        <h1 id="toolbar-title">그루터기 출석부</h1>
         <button class="icon-btn" onclick="openSettings()" title="명단 설정">
             <span class="material-symbols-rounded">settings</span>
         </button>
     </div>
 
-    <div class="container">
-        <div id="current-date" class="date-display"></div>
+    <div id="stump-view" class="view-container active">
+        <div class="container">
+            <div id="current-date" class="date-display"></div>
 
-        <div class="search-container">
-            <input type="text" id="etSearch" placeholder="이름 또는 초성 입력" autocomplete="off" aria-label="이름 또는 초성 검색">
-            <div id="suggestion-box" class="suggestion-box"></div>
+            <div class="search-container">
+                <input type="text" id="etSearch" placeholder="이름 또는 초성 입력" autocomplete="off" aria-label="이름 또는 초성 검색">
+                <div id="suggestion-box" class="suggestion-box"></div>
+            </div>
+
+            <div class="stats-card">
+                <div class="stat-item">
+                    <span class="count total-count" id="tvAttendanceCount">0</span>
+                    <span class="label">전체</span>
+                </div>
+                <div class="stat-item">
+                    <span class="count male-color" id="tvMaleCount">0</span>
+                    <span class="label">남</span>
+                </div>
+                <div class="stat-item">
+                    <span class="count female-color" id="tvFemaleCount">0</span>
+                    <span class="label">여</span>
+                </div>
+            </div>
+
+            <div class="section-title male-color">남</div>
+            <div id="cgMalePresent" class="chip-group"></div>
+
+            <div class="section-title female-color">여</div>
+            <div id="cgFemalePresent" class="chip-group"></div>
         </div>
 
-        <div class="stats-card">
-            <div class="stat-item">
-                <span class="count total-count" id="tvAttendanceCount">0</span>
-                <span class="label">전체</span>
+        <div class="fab-container">
+            <button class="btn-round btn-reset" onclick="confirmReset()" title="출석 초기화">
+                <span class="material-symbols-rounded">refresh</span>
+            </button>
+            <button class="btn-round btn-share" onclick="shareAttendance()" title="공유">
+                <span class="material-symbols-rounded">share</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="cell-view" class="view-container">
+        <div class="container">
+            <div id="cell-current-date" class="date-display"></div>
+
+            <div class="cell-name-container">
+                <input type="text" id="etCellName" placeholder="셀 이름 입력 (예: 홍길동 셀)" aria-label="셀 이름">
             </div>
-            <div class="stat-item">
-                <span class="count male-color" id="tvMaleCount">0</span>
-                <span class="label">남</span>
+
+            <div class="search-container">
+                <input type="text" id="etCellSearch" placeholder="이름 검색" autocomplete="off" aria-label="이름 검색">
+                <div id="cell-suggestion-box" class="suggestion-box"></div>
             </div>
-            <div class="stat-item">
-                <span class="count female-color" id="tvFemaleCount">0</span>
-                <span class="label">여</span>
+
+            <div class="stats-card">
+                <div class="stat-item">
+                    <span class="count total-count" id="tvCellTotalCount">0</span>
+                    <span class="label">전체</span>
+                </div>
+                <div class="stat-item">
+                    <span class="count male-color" id="tvCellMeetingCount">0</span>
+                    <span class="label">셀모임</span>
+                </div>
+                <div class="stat-item">
+                    <span class="count female-color" id="tvCellPbsCount">0</span>
+                    <span class="label">PBS</span>
+                </div>
+            </div>
+
+            <div id="cellMemberList" class="cell-member-list">
+                <!-- Cell member list will be rendered here -->
             </div>
         </div>
 
-        <div class="section-title male-color">남</div>
-        <div id="cgMalePresent" class="chip-group"></div>
-
-        <div class="section-title female-color">여</div>
-        <div id="cgFemalePresent" class="chip-group"></div>
+        <div class="fab-container">
+            <button class="btn-round btn-reset" onclick="confirmCellReset()" title="셀 출석 초기화">
+                <span class="material-symbols-rounded">refresh</span>
+            </button>
+            <button class="btn-round btn-share" onclick="shareCellAttendance()" title="공유">
+                <span class="material-symbols-rounded">share</span>
+            </button>
+        </div>
     </div>
 
-    <div class="fab-container">
-        <button class="btn-round btn-reset" onclick="confirmReset()" title="출석 초기화">
-            <span class="material-symbols-rounded">refresh</span>
-        </button>
-        <button class="btn-round btn-share" onclick="shareAttendance()" title="공유">
-            <span class="material-symbols-rounded">share</span>
-        </button>
-    </div>
+    <nav class="tab-bar">
+        <div class="tab-item active" onclick="switchView('stump')" id="tab-stump">
+            <span class="material-symbols-rounded">groups</span>
+            <span>그루터기</span>
+        </div>
+        <div class="tab-item" onclick="switchView('cell')" id="tab-cell">
+            <span class="material-symbols-rounded">edit_document</span>
+            <span>셀 출석</span>
+        </div>
+    </nav>
 
     <!-- 신규 등록 모달 (성별 선택용) -->
     <div id="addMemberModal" class="modal">
