@@ -8,6 +8,7 @@ let selectedDate = new Date().toISOString().split('T')[0];
 let pendingNames = []; // 일괄 추가를 위한 배열
 let isAutoAttend = false; // 검색을 통한 추가인지 여부
 let currentView = 'stump';
+let currentAddContext = 'stump';
 
 const etSearch = document.getElementById('etSearch');
 const etCellSearch = document.getElementById('etCellSearch');
@@ -47,33 +48,128 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    updateUI();
+    if (etSearch) {
+        etSearch.addEventListener('input', handleAutocomplete);
+        etSearch.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleSearch();
+                hideSuggestions();
+            }
+        });
+    }
 
-    etSearch.addEventListener('input', handleAutocomplete);
-    etSearch.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            handleSearch();
-            hideSuggestions();
-        }
-    });
-
-    etCellSearch.addEventListener('input', handleCellAutocomplete);
-    etCellSearch.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            handleCellSearch();
-            hideCellSuggestions();
-        }
-    });
+    if (etCellSearch) {
+        etCellSearch.addEventListener('input', handleCellAutocomplete);
+        etCellSearch.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleCellSearch();
+                hideCellSuggestions();
+            }
+        });
+    }
 
     document.addEventListener('click', (e) => {
-        if (!etSearch.contains(e.target)) {
+        if (etSearch && !etSearch.contains(e.target)) {
             hideSuggestions();
         }
         if (etCellSearch && !etCellSearch.contains(e.target)) {
             hideCellSuggestions();
         }
     });
+
+    initDraggableFab();
+    updateUI();
 });
+
+function initDraggableFab() {
+    const fabContainers = document.querySelectorAll('.fab-container');
+
+    fabContainers.forEach(container => {
+        let isDragging = false;
+        let startX, startY;
+        let initialRight = 20;
+        let initialBottom = 100;
+
+        // Load saved position
+        const savedPos = JSON.parse(localStorage.getItem('grutergi_fab_pos')) || { right: 20, bottom: 100 };
+        container.style.right = savedPos.right + 'px';
+        container.style.bottom = savedPos.bottom + 'px';
+
+        const onStart = (e) => {
+            const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+
+            startX = clientX;
+            startY = clientY;
+
+            initialRight = parseInt(window.getComputedStyle(container).right);
+            initialBottom = parseInt(window.getComputedStyle(container).bottom);
+
+            isDragging = false; // Reset on start
+
+            const moveHandler = (moveEvent) => {
+                const moveX = moveEvent.type === 'touchmove' ? moveEvent.touches[0].clientX : moveEvent.clientX;
+                const moveY = moveEvent.type === 'touchmove' ? moveEvent.touches[0].clientY : moveEvent.clientY;
+
+                if (Math.abs(startX - moveX) > 5 || Math.abs(startY - moveY) > 5) {
+                    isDragging = true;
+                    container.style.transition = 'none';
+
+                    const deltaX = startX - moveX;
+                    const deltaY = startY - moveY;
+
+                    const newRight = initialRight + deltaX;
+                    const newBottom = initialBottom + deltaY;
+
+                    const finalRight = Math.max(0, Math.min(window.innerWidth - container.offsetWidth, newRight));
+                    const finalBottom = Math.max(0, Math.min(window.innerHeight - container.offsetHeight, newBottom));
+
+                    container.style.right = finalRight + 'px';
+                    container.style.bottom = finalBottom + 'px';
+
+                    // Sync all containers
+                    document.querySelectorAll('.fab-container').forEach(other => {
+                        if (other !== container) {
+                            other.style.right = container.style.right;
+                            other.style.bottom = container.style.bottom;
+                        }
+                    });
+                }
+            };
+
+            const endHandler = () => {
+                if (isDragging) {
+                    container.style.transition = 'transform 0.2s';
+                    const pos = {
+                        right: parseInt(container.style.right),
+                        bottom: parseInt(container.style.bottom)
+                    };
+                    localStorage.setItem('grutergi_fab_pos', JSON.stringify(pos));
+                }
+                window.removeEventListener('mousemove', moveHandler);
+                window.removeEventListener('mouseup', endHandler);
+                window.removeEventListener('touchmove', moveHandler);
+                window.removeEventListener('touchend', endHandler);
+            };
+
+            window.addEventListener('mousemove', moveHandler);
+            window.addEventListener('mouseup', endHandler);
+            window.addEventListener('touchmove', moveHandler, { passive: false });
+            window.addEventListener('touchend', endHandler);
+        };
+
+        container.addEventListener('mousedown', onStart);
+        container.addEventListener('touchstart', onStart, { passive: false });
+
+        // Prevent click if dragging
+        container.addEventListener('click', (e) => {
+            if (isDragging) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
+    });
+}
 
 function switchView(view) {
     currentView = view;
@@ -130,7 +226,7 @@ function showSuggestions(suggestions) {
 }
 
 function hideSuggestions() {
-    suggestionBox.style.display = 'none';
+    if (suggestionBox) suggestionBox.style.display = 'none';
 }
 
 function selectSuggestion(id) {
@@ -437,8 +533,6 @@ function handleCellSearch() {
         }
     }
 }
-
-let currentAddContext = 'stump';
 
 function renderCellList() {
     const listContainer = document.getElementById('cellMemberList');
