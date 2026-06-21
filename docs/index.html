@@ -25,7 +25,9 @@
 
     <div id="stump-view" class="view-container active">
         <div class="container">
-            <div id="current-date" class="date-display"></div>
+            <div class="date-container">
+                <input type="date" id="stump-date-picker" class="date-input" aria-label="출석 날짜 선택">
+            </div>
 
             <div class="search-container">
                 <input type="text" id="etSearch" placeholder="이름 또는 초성 입력" autocomplete="off" aria-label="이름 또는 초성 검색">
@@ -66,7 +68,9 @@
 
     <div id="cell-view" class="view-container">
         <div class="container">
-            <div id="cell-current-date" class="date-display"></div>
+            <div class="date-container">
+                <input type="date" id="cell-date-picker" class="date-input" aria-label="출석 날짜 선택">
+            </div>
 
             <div class="cell-name-container">
                 <input type="text" id="etCellName" placeholder="셀 이름 입력 (예: 홍길동 셀)" aria-label="셀 이름">

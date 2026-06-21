@@ -3,6 +3,7 @@ let attendance = new Set(JSON.parse(localStorage.getItem('grutergi_attendance'))
 let cellAttendance = JSON.parse(localStorage.getItem('grutergi_cell_attendance')) || {};
 let cellActiveMemberIds = new Set(JSON.parse(localStorage.getItem('grutergi_cell_active_members')) || []);
 let cellName = localStorage.getItem('grutergi_cell_name') || "";
+let selectedDate = new Date().toISOString().split('T')[0];
 
 let pendingNames = []; // 일괄 추가를 위한 배열
 let isAutoAttend = false; // 검색을 통한 추가인지 여부
@@ -17,10 +18,26 @@ const settingsSideView = document.getElementById('settingsSideView');
 
 // 초기화
 document.addEventListener('DOMContentLoaded', () => {
-    const now = new Date();
-    const dateStr = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일`;
-    document.getElementById('current-date').innerText = dateStr;
-    document.getElementById('cell-current-date').innerText = dateStr;
+    const stumpDatePicker = document.getElementById('stump-date-picker');
+    const cellDatePicker = document.getElementById('cell-date-picker');
+
+    if (stumpDatePicker) {
+        stumpDatePicker.value = selectedDate;
+        stumpDatePicker.addEventListener('change', (e) => {
+            selectedDate = e.target.value;
+            if (cellDatePicker) cellDatePicker.value = selectedDate;
+            updateUI();
+        });
+    }
+
+    if (cellDatePicker) {
+        cellDatePicker.value = selectedDate;
+        cellDatePicker.addEventListener('change', (e) => {
+            selectedDate = e.target.value;
+            if (stumpDatePicker) stumpDatePicker.value = selectedDate;
+            updateUI();
+        });
+    }
 
     if (etCellName) {
         etCellName.value = cellName;
@@ -491,6 +508,8 @@ function confirmCellReset() {
 
 function shareCellAttendance() {
     const displayName = cellName.trim() || "OOO";
+    const dateArr = selectedDate.split('-');
+    const dateStr = `${dateArr[0]}년 ${parseInt(dateArr[1])}월 ${parseInt(dateArr[2])}일`;
 
     const meetingList = members
         .filter(m => cellAttendance[m.id]?.meeting)
@@ -502,7 +521,7 @@ function shareCellAttendance() {
         .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
         .map(m => m.name);
 
-    const text = `📍 [${displayName}]\n━━━━━━━━━━━━━━\n✅ 출석 (${meetingList.length}명)\n${meetingList.join(" ") || "없음"}\n\n📖 PBS (${pbsList.length}명)\n${pbsList.join(" ") || "없음"}`;
+    const text = `📍 [${displayName}] ${dateStr}\n━━━━━━━━━━━━━━\n✅ 출석 (${meetingList.length}명)\n${meetingList.join(" ") || "없음"}\n\n📖 PBS (${pbsList.length}명)\n${pbsList.join(" ") || "없음"}`;
 
     if (navigator.share) {
         navigator.share({ text: text });
@@ -588,11 +607,12 @@ function renderSettingsList() {
 }
 
 function shareAttendance() {
-    const now = new Date();
-    const date = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일`;
+    const dateArr = selectedDate.split('-');
+    const dateStr = `${dateArr[0]}년 ${parseInt(dateArr[1])}월 ${parseInt(dateArr[2])}일`;
+
     const maleList = members.filter(m => m.isMale && attendance.has(m.id)).map(m => m.name).sort();
     const femaleList = members.filter(m => !m.isMale && attendance.has(m.id)).map(m => m.name).sort();
-    const text = `[그루터기 출석 현황]\n${date}\n\n전체 ${attendance.size}명\n\n남 ${maleList.length}명\n${maleList.join(" ")}\n\n여 ${femaleList.length}명\n${femaleList.join(" ")}`;
+    const text = `[그루터기 출석 현황]\n📅 ${dateStr}\n\n전체 ${attendance.size}명\n\n남 ${maleList.length}명\n${maleList.join(" ")}\n\n여 ${femaleList.length}명\n${femaleList.join(" ")}`;
 
     if (navigator.share) {
         navigator.share({ text: text });

@@ -177,8 +177,24 @@ body {
 
 .container { padding: 16px; }
 
-.date-display {
-    font-size: 14px; color: var(--text-secondary); text-align: left; margin-bottom: 20px;
+.date-container {
+    margin-bottom: 20px;
+}
+
+.date-input {
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text-secondary);
+    border: none;
+    background: transparent;
+    padding: 0;
+    outline: none;
+    cursor: pointer;
+}
+
+.date-input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.6;
 }
 
 .cell-name-container {
