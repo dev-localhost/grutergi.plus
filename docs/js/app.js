@@ -649,6 +649,11 @@ function renderCellList() {
         item.addEventListener('dragleave', handleDragLeave);
         item.addEventListener('dragend', handleDragEnd);
 
+        const handle = item.querySelector('.drag-handle');
+        handle.addEventListener('touchstart', handleTouchStart, { passive: false });
+        handle.addEventListener('touchmove', handleTouchMove, { passive: false });
+        handle.addEventListener('touchend', handleTouchEnd);
+
         listContainer.appendChild(item);
     });
 
@@ -696,6 +701,53 @@ function renderCellList() {
 }
 
 let dragSrcEl = null;
+let touchSrcEl = null;
+let touchStartY = 0;
+
+function handleTouchStart(e) {
+    const item = this.closest('.cell-member-item');
+    touchSrcEl = item;
+    touchStartY = e.touches[0].clientY;
+    item.classList.add('dragging');
+    // Prevent scrolling when starting on handle
+    e.stopPropagation();
+}
+
+function handleTouchMove(e) {
+    if (!touchSrcEl) return;
+
+    e.preventDefault(); // Prevent scrolling
+    const touch = e.touches[0];
+    const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+    const dropTarget = targetEl ? targetEl.closest('.cell-member-item') : null;
+
+    if (dropTarget && dropTarget !== touchSrcEl) {
+        const list = touchSrcEl.parentNode;
+        const items = Array.from(list.children);
+        const srcIndex = items.indexOf(touchSrcEl);
+        const targetIndex = items.indexOf(dropTarget);
+
+        if (srcIndex < targetIndex) {
+            list.insertBefore(touchSrcEl, dropTarget.nextSibling);
+        } else {
+            list.insertBefore(touchSrcEl, dropTarget);
+        }
+    }
+}
+
+function handleTouchEnd(e) {
+    if (!touchSrcEl) return;
+    touchSrcEl.classList.remove('dragging');
+
+    // Save new order
+    const list = touchSrcEl.parentNode;
+    const newOrder = Array.from(list.children).map(item => item.dataset.id);
+    cellActiveMemberIds = newOrder;
+    saveData();
+
+    touchSrcEl = null;
+    renderCellList(); // Refresh to update indices etc.
+}
 
 function handleDragStart(e) {
     this.classList.add('dragging');
