@@ -683,7 +683,7 @@ function renderCellList() {
     if (cellCheckSettings.wednesday) {
         statsHtml += `
             <div class="stat-item">
-                <span class="count male-color" style="color: #5856D6;">${wednesdayCount}</span>
+                <span class="count" style="color: var(--primary-color);">${wednesdayCount}</span>
                 <span class="label">수요</span>
             </div>
         `;
@@ -691,7 +691,7 @@ function renderCellList() {
     if (cellCheckSettings.friday) {
         statsHtml += `
             <div class="stat-item">
-                <span class="count female-color" style="color: #FF9500;">${fridayCount}</span>
+                <span class="count" style="color: var(--secondary-color);">${fridayCount}</span>
                 <span class="label">금요</span>
             </div>
         `;
