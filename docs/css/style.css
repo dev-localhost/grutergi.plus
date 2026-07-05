@@ -113,6 +113,8 @@ body {
     color: var(--divider-color);
     margin-right: 8px;
     user-select: none;
+    touch-action: none; /* 핵심: 터치 시 브라우저 기본 동작(스크롤) 차단 */
+    padding: 10px 5px; /* 터치 영역 확대 */
 }
 
 .drag-handle:active {

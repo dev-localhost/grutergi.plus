@@ -709,17 +709,22 @@ function handleTouchStart(e) {
     touchSrcEl = item;
     touchStartY = e.touches[0].clientY;
     item.classList.add('dragging');
-    // Prevent scrolling when starting on handle
+
+    // 핵심: 안드로이드 등에서 스크롤 간섭을 최소화하기 위해 passive: false와 함께 사용
+    if (e.cancelable) e.preventDefault();
     e.stopPropagation();
 }
 
 function handleTouchMove(e) {
     if (!touchSrcEl) return;
 
-    e.preventDefault(); // Prevent scrolling
+    if (e.cancelable) e.preventDefault(); // 스크롤 완전히 차단
+
     const touch = e.touches[0];
     const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
-    const dropTarget = targetEl ? targetEl.closest('.cell-member-item') : null;
+    if (!targetEl) return;
+
+    const dropTarget = targetEl.closest('.cell-member-item');
 
     if (dropTarget && dropTarget !== touchSrcEl) {
         const list = touchSrcEl.parentNode;
