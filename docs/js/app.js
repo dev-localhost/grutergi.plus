@@ -1,8 +1,14 @@
 let members = JSON.parse(localStorage.getItem('grutergi_members')) || [];
 let attendance = new Set(JSON.parse(localStorage.getItem('grutergi_attendance')) || []);
 let cellAttendance = JSON.parse(localStorage.getItem('grutergi_cell_attendance')) || {};
-let cellActiveMemberIds = new Set(JSON.parse(localStorage.getItem('grutergi_cell_active_members')) || []);
+let cellActiveMemberIds = JSON.parse(localStorage.getItem('grutergi_cell_active_members')) || [];
 let cellName = localStorage.getItem('grutergi_cell_name') || "";
+let cellCheckSettings = JSON.parse(localStorage.getItem('grutergi_cell_check_settings')) || {
+    attendance: true,
+    pbs: true,
+    wednesday: true,
+    friday: true
+};
 let selectedDate = new Date().toISOString().split('T')[0];
 
 let pendingNames = []; // 일괄 추가를 위한 배열
@@ -19,6 +25,17 @@ const settingsSideView = document.getElementById('settingsSideView');
 
 // 초기화
 document.addEventListener('DOMContentLoaded', () => {
+    // Data Migration: 'meeting' to 'attendance' for cellAttendance
+    let migrated = false;
+    for (const id in cellAttendance) {
+        if (cellAttendance[id].hasOwnProperty('meeting')) {
+            cellAttendance[id].attendance = cellAttendance[id].meeting;
+            delete cellAttendance[id].meeting;
+            migrated = true;
+        }
+    }
+    if (migrated) saveData();
+
     const stumpDatePicker = document.getElementById('stump-date-picker');
     const cellDatePicker = document.getElementById('cell-date-picker');
 
@@ -330,7 +347,9 @@ function processAddMember(isMale) {
                 attendance.add(newMember.id);
             }
             if (currentAddContext === 'cell') {
-                cellActiveMemberIds.add(newMember.id);
+                if (!cellActiveMemberIds.includes(newMember.id)) {
+                    cellActiveMemberIds.push(newMember.id);
+                }
             }
             addedCount++;
         }
@@ -414,8 +433,9 @@ function saveData() {
     localStorage.setItem('grutergi_members', JSON.stringify(members));
     localStorage.setItem('grutergi_attendance', JSON.stringify(Array.from(attendance)));
     localStorage.setItem('grutergi_cell_attendance', JSON.stringify(cellAttendance));
-    localStorage.setItem('grutergi_cell_active_members', JSON.stringify(Array.from(cellActiveMemberIds)));
+    localStorage.setItem('grutergi_cell_active_members', JSON.stringify(cellActiveMemberIds));
     localStorage.setItem('grutergi_cell_name', cellName);
+    localStorage.setItem('grutergi_cell_check_settings', JSON.stringify(cellCheckSettings));
 }
 
 function updateUI() {
@@ -466,7 +486,8 @@ function handleCellAutocomplete() {
     }
 
     const matchingMembers = members.filter(m =>
-        !cellActiveMemberIds.has(m.id) && (m.name.includes(query) || getChosung(m.name).includes(query))
+        !cellActiveMemberIds.includes(m.id) &&
+        (m.name.toLowerCase().includes(query.toLowerCase()) || getChosung(m.name).includes(query.toLowerCase()))
     );
 
     if (matchingMembers.length > 0) {
@@ -500,7 +521,9 @@ function hideCellSuggestions() {
 }
 
 function selectCellSuggestion(id) {
-    cellActiveMemberIds.add(id);
+    if (!cellActiveMemberIds.includes(id)) {
+        cellActiveMemberIds.push(id);
+    }
     saveData();
     etCellSearch.value = '';
     hideCellSuggestions();
@@ -515,7 +538,7 @@ function handleCellSearch() {
         m.name.includes(query) || getChosung(m.name).includes(query)
     );
 
-    const notActive = matchingMembers.filter(m => !cellActiveMemberIds.has(m.id));
+    const notActive = matchingMembers.filter(m => !cellActiveMemberIds.includes(m.id));
 
     if (notActive.length === 1) {
         selectCellSuggestion(notActive[0].id);
@@ -536,54 +559,215 @@ function handleCellSearch() {
 
 function renderCellList() {
     const listContainer = document.getElementById('cellMemberList');
-    if (!listContainer) return;
+    const statsCard = document.getElementById('cellStatsCard');
+    if (!listContainer || !statsCard) return;
 
     const query = etCellSearch.value.trim();
 
-    const activeMembers = members.filter(m => cellActiveMemberIds.has(m.id));
+    // activeMembers mapping
+    const activeMembers = cellActiveMemberIds
+        .map(id => members.find(m => m.id === id))
+        .filter(m => m); // remove nulls if member deleted from settings
+
     const filteredMembers = activeMembers
-        .filter(m => m.name.includes(query) || getChosung(m.name).includes(query))
-        .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+        .filter(m => {
+            const name = m.name.toLowerCase();
+            const chosung = getChosung(name);
+            const lowerQuery = query.toLowerCase();
+            return name.includes(lowerQuery) || chosung.includes(lowerQuery);
+        });
 
     listContainer.innerHTML = '';
 
-    let meetingCount = 0;
+    let attendanceCount = 0;
     let pbsCount = 0;
+    let wednesdayCount = 0;
+    let fridayCount = 0;
 
-    filteredMembers.forEach(member => {
-        const data = cellAttendance[member.id] || { meeting: false, pbs: false };
-        if (data.meeting) meetingCount++;
+    filteredMembers.forEach((member, index) => {
+        const data = cellAttendance[member.id] || { attendance: false, pbs: false, wednesday: false, friday: false };
+        if (data.attendance) attendanceCount++;
         if (data.pbs) pbsCount++;
+        if (data.wednesday) wednesdayCount++;
+        if (data.friday) fridayCount++;
 
         const item = document.createElement('div');
         item.className = 'cell-member-item';
+        item.draggable = true;
+        item.dataset.id = member.id;
+        item.dataset.index = index;
+
+        let checkButtonsHtml = '';
+        if (cellCheckSettings.attendance) {
+            checkButtonsHtml += `
+                <div class="cell-check-btn ${data.attendance ? 'active' : ''}" onclick="toggleCellAttendance('${member.id}', 'attendance')">
+                    <div class="checkbox"><span class="material-symbols-rounded">check</span></div>
+                    <span class="label">출석</span>
+                </div>`;
+        }
+        if (cellCheckSettings.pbs) {
+            checkButtonsHtml += `
+                <div class="cell-check-btn ${data.pbs ? 'active' : ''}" onclick="toggleCellAttendance('${member.id}', 'pbs')">
+                    <div class="checkbox"><span class="material-symbols-rounded">check</span></div>
+                    <span class="label">PBS</span>
+                </div>`;
+        }
+        if (cellCheckSettings.wednesday) {
+            checkButtonsHtml += `
+                <div class="cell-check-btn ${data.wednesday ? 'active' : ''}" onclick="toggleCellAttendance('${member.id}', 'wednesday')">
+                    <div class="checkbox"><span class="material-symbols-rounded">check</span></div>
+                    <span class="label">수요</span>
+                </div>`;
+        }
+        if (cellCheckSettings.friday) {
+            checkButtonsHtml += `
+                <div class="cell-check-btn ${data.friday ? 'active' : ''}" onclick="toggleCellAttendance('${member.id}', 'friday')">
+                    <div class="checkbox"><span class="material-symbols-rounded">check</span></div>
+                    <span class="label">금요</span>
+                </div>`;
+        }
+
         item.innerHTML = `
+            <span class="material-symbols-rounded drag-handle">drag_indicator</span>
             <div class="cell-member-info">
                 <div class="gender-dot ${member.isMale ? 'male' : 'female'}"></div>
                 <span class="cell-member-name">${member.name}</span>
             </div>
             <div class="cell-checkboxes">
-                <div class="cell-check-btn ${data.meeting ? 'active' : ''}" onclick="toggleCellAttendance('${member.id}', 'meeting')">
-                    <div class="checkbox"><span class="material-symbols-rounded">check</span></div>
-                    <span class="label">셀모임</span>
-                </div>
-                <div class="cell-check-btn ${data.pbs ? 'active' : ''}" onclick="toggleCellAttendance('${member.id}', 'pbs')">
-                    <div class="checkbox"><span class="material-symbols-rounded">check</span></div>
-                    <span class="label">PBS</span>
-                </div>
+                ${checkButtonsHtml}
             </div>
+            <button class="btn-item-delete" onclick="removeMemberFromCell('${member.id}')" title="명단에서 제외">
+                <span class="material-symbols-rounded">close</span>
+            </button>
         `;
+
+        // Drag events
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragover', handleDragOver);
+        item.addEventListener('drop', handleDrop);
+        item.addEventListener('dragenter', handleDragEnter);
+        item.addEventListener('dragleave', handleDragLeave);
+        item.addEventListener('dragend', handleDragEnd);
+
         listContainer.appendChild(item);
     });
 
-    document.getElementById('tvCellTotalCount').innerText = filteredMembers.length;
-    document.getElementById('tvCellMeetingCount').innerText = meetingCount;
-    document.getElementById('tvCellPbsCount').innerText = pbsCount;
+    // Update Stats Card Dynamically
+    let statsHtml = `
+        <div class="stat-item">
+            <span class="count total-count">${filteredMembers.length}</span>
+            <span class="label">전체</span>
+        </div>
+    `;
+
+    if (cellCheckSettings.attendance) {
+        statsHtml += `
+            <div class="stat-item">
+                <span class="count male-color">${attendanceCount}</span>
+                <span class="label">출석</span>
+            </div>
+        `;
+    }
+    if (cellCheckSettings.pbs) {
+        statsHtml += `
+            <div class="stat-item">
+                <span class="count female-color">${pbsCount}</span>
+                <span class="label">PBS</span>
+            </div>
+        `;
+    }
+    if (cellCheckSettings.wednesday) {
+        statsHtml += `
+            <div class="stat-item">
+                <span class="count male-color" style="color: #5856D6;">${wednesdayCount}</span>
+                <span class="label">수요</span>
+            </div>
+        `;
+    }
+    if (cellCheckSettings.friday) {
+        statsHtml += `
+            <div class="stat-item">
+                <span class="count female-color" style="color: #FF9500;">${fridayCount}</span>
+                <span class="label">금요</span>
+            </div>
+        `;
+    }
+    statsCard.innerHTML = statsHtml;
+}
+
+let dragSrcEl = null;
+
+function handleDragStart(e) {
+    this.classList.add('dragging');
+    dragSrcEl = this;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', this.dataset.index);
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) e.preventDefault();
+    return false;
+}
+
+function handleDragEnter() { this.classList.add('over'); }
+function handleDragLeave() { this.classList.remove('over'); }
+
+function handleDrop(e) {
+    if (e.stopPropagation) e.stopPropagation();
+
+    if (dragSrcEl !== this) {
+        const fromId = dragSrcEl.dataset.id;
+        const toId = this.dataset.id;
+
+        const fromIndex = cellActiveMemberIds.indexOf(fromId);
+        const toIndex = cellActiveMemberIds.indexOf(toId);
+
+        if (fromIndex !== -1 && toIndex !== -1) {
+            const [movedId] = cellActiveMemberIds.splice(fromIndex, 1);
+            cellActiveMemberIds.splice(toIndex, 0, movedId);
+
+            saveData();
+            renderCellList();
+        }
+    }
+    return false;
+}
+
+function handleDragEnd() {
+    this.classList.remove('dragging');
+    const items = document.querySelectorAll('.cell-member-item');
+    items.forEach(item => item.classList.remove('over'));
+}
+
+function removeMemberFromCell(id) {
+    cellActiveMemberIds = cellActiveMemberIds.filter(mid => mid !== id);
+    saveData();
+    renderCellList();
+}
+
+function openCellSettings() {
+    document.getElementById('checkItemAttendance').checked = cellCheckSettings.attendance;
+    document.getElementById('checkItemPbs').checked = cellCheckSettings.pbs;
+    document.getElementById('checkItemWednesday').checked = cellCheckSettings.wednesday;
+    document.getElementById('checkItemFriday').checked = cellCheckSettings.friday;
+    document.getElementById('cellSettingsModal').style.display = 'flex';
+}
+
+function saveCellSettings() {
+    cellCheckSettings = {
+        attendance: document.getElementById('checkItemAttendance').checked,
+        pbs: document.getElementById('checkItemPbs').checked,
+        wednesday: document.getElementById('checkItemWednesday').checked,
+        friday: document.getElementById('checkItemFriday').checked
+    };
+    saveData();
+    closeModal('cellSettingsModal');
+    renderCellList();
 }
 
 function toggleCellAttendance(memberId, type) {
     if (!cellAttendance[memberId]) {
-        cellAttendance[memberId] = { meeting: false, pbs: false };
+        cellAttendance[memberId] = { attendance: false, pbs: false, wednesday: false, friday: false };
     }
     cellAttendance[memberId][type] = !cellAttendance[memberId][type];
     saveData();
@@ -591,39 +775,80 @@ function toggleCellAttendance(memberId, type) {
 }
 
 function confirmCellReset() {
-    showConfirmDialog("셀 출석 초기화", "셀 목록과 출석 기록을 모두 지우시겠습니까?\n(등록된 전체 명단은 유지됩니다)", () => {
-        cellAttendance = {};
-        cellActiveMemberIds.clear();
-        saveData();
-        renderCellList();
-        showToast("셀 출석 기록이 초기화되었습니다.");
-    });
+    document.getElementById('resetOptionsModal').style.display = 'flex';
 }
 
-function shareCellAttendance() {
+function resetCellAttendanceOnly() {
+    cellAttendance = {};
+    saveData();
+    renderCellList();
+    closeModal('resetOptionsModal');
+    showToast("체크 기록이 초기화되었습니다.");
+}
+
+function resetCellFull() {
+    cellAttendance = {};
+    cellActiveMemberIds = [];
+    saveData();
+    renderCellList();
+    closeModal('resetOptionsModal');
+    showToast("명단과 기록이 모두 초기화되었습니다.");
+}
+
+function copyCellAttendance() {
     const displayName = cellName.trim() || "OOO";
     const dateArr = selectedDate.split('-');
     const dateStr = `${parseInt(dateArr[1])}/${parseInt(dateArr[2])}`;
 
-    const meetingList = members
-        .filter(m => cellAttendance[m.id]?.meeting)
-        .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-        .map(m => m.name);
+    const activeMembers = cellActiveMemberIds
+        .map(id => members.find(m => m.id === id))
+        .filter(m => m);
 
-    const pbsList = members
-        .filter(m => cellAttendance[m.id]?.pbs)
-        .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-        .map(m => m.name);
+    let text = `📍 [${displayName}] ${dateStr}\n━━━━━━━━━━━━━━\n`;
 
-    const text = `📍 [${displayName}] ${dateStr}\n━━━━━━━━━━━━━━\n✅ 출석 (${meetingList.length}명)\n${meetingList.join(" ") || "없음"}\n\n📖 PBS (${pbsList.length}명)\n${pbsList.join(" ") || "없음"}`;
+    let hasData = false;
 
-    if (navigator.share) {
-        navigator.share({ text: text });
-    } else {
-        navigator.clipboard.writeText(text).then(() => {
-            showToast("셀 출석 현황이 클립보드에 복사되었습니다.");
-        });
+    if (cellCheckSettings.attendance) {
+        const list = activeMembers.filter(m => cellAttendance[m.id]?.attendance).map(m => m.name);
+        if (list.length > 0) {
+            text += `✅ 출석 (${list.length}명)\n${list.join(" ")}\n\n`;
+            hasData = true;
+        }
     }
+    if (cellCheckSettings.pbs) {
+        const list = activeMembers.filter(m => cellAttendance[m.id]?.pbs).map(m => m.name);
+        if (list.length > 0) {
+            text += `📖 PBS (${list.length}명)\n${list.join(" ")}\n\n`;
+            hasData = true;
+        }
+    }
+    if (cellCheckSettings.wednesday) {
+        const list = activeMembers.filter(m => cellAttendance[m.id]?.wednesday).map(m => m.name);
+        if (list.length > 0) {
+            text += `⛪ 수요예배 (${list.length}명)\n${list.join(" ")}\n\n`;
+            hasData = true;
+        }
+    }
+    if (cellCheckSettings.friday) {
+        const list = activeMembers.filter(m => cellAttendance[m.id]?.friday).map(m => m.name);
+        if (list.length > 0) {
+            text += `🔥 금요기도회 (${list.length}명)\n${list.join(" ")}\n\n`;
+            hasData = true;
+        }
+    }
+
+    if (!hasData) {
+        text += "체크된 내역이 없습니다.";
+    }
+
+    text = text.trim();
+
+    navigator.clipboard.writeText(text).then(() => {
+        showToast("출석 현황이 클립보드에 복사되었습니다.");
+    }).catch(err => {
+        console.error('복사 실패:', err);
+        showToast("복사에 실패했습니다.");
+    });
 }
 
 function renderSettingsList() {
@@ -727,6 +952,7 @@ function showToast(message) {
     }, 2000);
 }
 function getChosung(str) {
+    if (!str) return "";
     const chosungs = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
     return str.split('').map(char => {
         const code = char.charCodeAt(0) - 44032;
