@@ -628,7 +628,6 @@ function renderCellList() {
         }
 
         item.innerHTML = `
-            <span class="material-symbols-rounded drag-handle">drag_indicator</span>
             <div class="cell-member-info">
                 <div class="gender-dot ${member.isMale ? 'male' : 'female'}"></div>
                 <span class="cell-member-name">${member.name}</span>
@@ -641,7 +640,7 @@ function renderCellList() {
             </button>
         `;
 
-        // Drag events
+        // Desktop Drag events (remain for mouse users)
         item.addEventListener('dragstart', handleDragStart);
         item.addEventListener('dragover', handleDragOver);
         item.addEventListener('drop', handleDrop);
@@ -649,10 +648,10 @@ function renderCellList() {
         item.addEventListener('dragleave', handleDragLeave);
         item.addEventListener('dragend', handleDragEnd);
 
-        const handle = item.querySelector('.drag-handle');
-        handle.addEventListener('touchstart', handleTouchStart, { passive: false });
-        handle.addEventListener('touchmove', handleTouchMove, { passive: false });
-        handle.addEventListener('touchend', handleTouchEnd);
+        // Mobile Long Press events
+        item.addEventListener('touchstart', handleTouchStart, { passive: false });
+        item.addEventListener('touchmove', handleTouchMove, { passive: false });
+        item.addEventListener('touchend', handleTouchEnd);
 
         listContainer.appendChild(item);
     });
@@ -703,24 +702,47 @@ function renderCellList() {
 let dragSrcEl = null;
 let touchSrcEl = null;
 let touchStartY = 0;
+let longPressTimer = null;
+let isLongPressActive = false;
 
 function handleTouchStart(e) {
+    // Only handle touch on the member item itself, not on buttons
+    if (e.target.closest('button') || e.target.closest('.cell-check-btn')) return;
+
     const item = this.closest('.cell-member-item');
     touchSrcEl = item;
-    touchStartY = e.touches[0].clientY;
-    item.classList.add('dragging');
+    const touch = e.touches[0];
+    touchStartY = touch.clientY;
 
-    // 핵심: 안드로이드 등에서 스크롤 간섭을 최소화하기 위해 passive: false와 함께 사용
-    if (e.cancelable) e.preventDefault();
-    e.stopPropagation();
+    isLongPressActive = false;
+
+    // Clear any existing timer
+    if (longPressTimer) clearTimeout(longPressTimer);
+
+    // Start long press timer
+    longPressTimer = setTimeout(() => {
+        isLongPressActive = true;
+        item.classList.add('dragging');
+        if (navigator.vibrate) navigator.vibrate(50); // Haptic feedback
+    }, 400); // 0.4 seconds
 }
 
 function handleTouchMove(e) {
     if (!touchSrcEl) return;
 
+    const touch = e.touches[0];
+    const currentY = touch.clientY;
+
+    // If we move too much before long press is active, cancel it
+    if (!isLongPressActive) {
+        if (Math.abs(currentY - touchStartY) > 10) {
+            clearTimeout(longPressTimer);
+        }
+        return;
+    }
+
     if (e.cancelable) e.preventDefault(); // 스크롤 완전히 차단
 
-    const touch = e.touches[0];
     const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
     if (!targetEl) return;
 
@@ -741,17 +763,21 @@ function handleTouchMove(e) {
 }
 
 function handleTouchEnd(e) {
-    if (!touchSrcEl) return;
-    touchSrcEl.classList.remove('dragging');
+    clearTimeout(longPressTimer);
 
-    // Save new order
-    const list = touchSrcEl.parentNode;
-    const newOrder = Array.from(list.children).map(item => item.dataset.id);
-    cellActiveMemberIds = newOrder;
-    saveData();
+    if (!touchSrcEl) return;
+
+    if (isLongPressActive) {
+        touchSrcEl.classList.remove('dragging');
+        // Save new order
+        const list = touchSrcEl.parentNode;
+        const newOrder = Array.from(list.children).map(item => item.dataset.id);
+        cellActiveMemberIds = newOrder;
+        saveData();
+    }
 
     touchSrcEl = null;
-    renderCellList(); // Refresh to update indices etc.
+    isLongPressActive = false;
 }
 
 function handleDragStart(e) {
