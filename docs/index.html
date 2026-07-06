@@ -16,14 +16,14 @@
 <body>
 
     <div class="toolbar">
-        <img src="favicon-96x96.png" alt="logo" class="toolbar-logo">
-        <h1 id="toolbar-title">그루터기 출석부</h1>
+        <div style="width: 40px;"></div> <!-- Spacer for balance -->
+        <h1 id="toolbar-title">셀 출석부</h1>
         <button class="icon-btn" onclick="openSettings()" title="명단 설정">
-            <span class="material-symbols-rounded">settings</span>
+            <span class="material-symbols-rounded">person_add</span>
         </button>
     </div>
 
-    <div id="stump-view" class="view-container active">
+    <div id="stump-view" class="view-container">
         <div class="container">
             <div class="date-container">
                 <input type="date" id="stump-date-picker" class="date-input" aria-label="출석 날짜 선택">
@@ -66,22 +66,17 @@
         </div>
     </div>
 
-    <div id="cell-view" class="view-container">
+    <div id="cell-view" class="view-container active">
         <div class="container">
             <div class="date-container">
                 <input type="date" id="cell-date-picker" class="date-input" aria-label="출석 날짜 선택">
             </div>
 
-            <div class="cell-name-container" style="display: flex; align-items: center; gap: 8px;">
-                <input type="text" id="etCellName" placeholder="셀 이름 입력 (예: 홍길동 셀)" aria-label="셀 이름" style="flex: 1;">
-                <button class="icon-btn" onclick="openCellSettings()" title="항목 설정" style="width: 32px; height: 32px;">
-                    <span class="material-symbols-rounded" style="font-size: 20px;">tune</span>
+            <div class="cell-name-container">
+                <input type="text" id="etCellName" placeholder="셀 이름 입력 (예: 홍길동 셀)" aria-label="셀 이름">
+                <button class="icon-btn" onclick="openCellSettings()" title="항목 설정">
+                    <span class="material-symbols-rounded">tune</span>
                 </button>
-            </div>
-
-            <div class="search-container">
-                <input type="text" id="etCellSearch" placeholder="이름 검색" autocomplete="off" aria-label="이름 검색">
-                <div id="cell-suggestion-box" class="suggestion-box"></div>
             </div>
 
             <div class="stats-card" id="cellStatsCard">
@@ -91,6 +86,11 @@
             <div id="cellMemberList" class="cell-member-list">
                 <!-- Cell member list will be rendered here -->
             </div>
+
+            <button class="btn-add-member" onclick="openAddMemberModal()">
+                <span class="material-symbols-rounded">person_add</span>
+                <span>인원 추가</span>
+            </button>
         </div>
 
         <div class="fab-container">
@@ -103,18 +103,6 @@
         </div>
     </div>
 
-    <nav class="tab-bar">
-        <div class="tab-item active" onclick="switchView('stump')" id="tab-stump">
-            <span class="material-symbols-rounded">groups</span>
-            <span>그루터기</span>
-        </div>
-        <div class="tab-item" onclick="switchView('cell')" id="tab-cell">
-            <span class="material-symbols-rounded">edit_document</span>
-            <span>셀 출석</span>
-        </div>
-    </nav>
-
-    <!-- 신규 등록 모달 (성별 선택용) -->
     <div id="addMemberModal" class="modal">
         <div class="modal-content">
             <div class="modal-title" id="modalTitle" style="font-size:18px; font-weight:bold; margin-bottom:12px;">성별 선택</div>
@@ -211,7 +199,39 @@
         </div>
     </div>
 
+    <!-- 셀 인원 추가 모달 -->
+    <div id="cellAddMemberModal" class="modal">
+        <div class="modal-content" style="max-height: 80vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div class="modal-title" style="font-size:18px; font-weight:bold;">셀 인원 추가</div>
+                <button class="icon-btn" onclick="closeModal('cellAddMemberModal')" style="width: 32px; height: 32px;">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </div>
+
+            <div class="search-container" style="margin-bottom: 16px;">
+                <input type="text" id="etCellAddSearch" placeholder="이름 또는 초성 검색" autocomplete="off">
+            </div>
+
+            <div id="cellAddMemberList" style="flex: 1; overflow-y: auto; margin-bottom: 16px;">
+                <!-- 검색 결과 또는 전체 명단이 나옴 -->
+            </div>
+
+            <div class="modal-btns">
+                <button class="btn-gray" onclick="closeModal('cellAddMemberModal')">닫기</button>
+            </div>
+        </div>
+    </div>
+
     <div id="toast" class="toast"></div>
+
+    <div class="floating-nav-container">
+        <div class="segmented-control">
+            <div class="segment active" onclick="switchView('cell')" id="seg-cell">셀 출석</div>
+            <div class="segment" onclick="switchView('stump')" id="seg-stump">그루터기</div>
+            <div class="slider"></div>
+        </div>
+    </div>
 
     <script src="js/utils.js"></script>
     <script src="js/app.js"></script>
