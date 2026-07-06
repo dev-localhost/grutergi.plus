@@ -10,11 +10,13 @@ let cellCheckSettings = JSON.parse(localStorage.getItem('grutergi_cell_check_set
     friday: true
 };
 let selectedDate = new Date().toISOString().split('T')[0];
+let colorSchemePreference = localStorage.getItem('grutergi_color_scheme') || 'auto';
 
 let pendingNames = []; // 일괄 추가를 위한 배열
 let isAutoAttend = false; // 검색을 통한 추가인지 여부
 let currentView = 'cell';
 let currentAddContext = 'cell';
+const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
 const etSearch = document.getElementById('etSearch');
 const etCellAddSearch = document.getElementById('etCellAddSearch');
@@ -22,6 +24,7 @@ const etCellName = document.getElementById('etCellName');
 const suggestionBox = document.getElementById('suggestion-box');
 const cellAddMemberList = document.getElementById('cellAddMemberList');
 const settingsSideView = document.getElementById('settingsSideView');
+const themeToggleIcon = document.getElementById('theme-toggle-icon');
 
 // 초기화
 document.addEventListener('DOMContentLoaded', () => {
@@ -88,10 +91,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initDraggableFab();
     initScrollAutoHiding();
+    applyColorScheme();
+    if (darkModeMediaQuery.addEventListener) {
+        darkModeMediaQuery.addEventListener('change', () => {
+            if (colorSchemePreference === 'auto') applyColorScheme();
+        });
+    } else if (darkModeMediaQuery.addListener) {
+        darkModeMediaQuery.addListener(() => {
+            if (colorSchemePreference === 'auto') applyColorScheme();
+        });
+    }
     document.body.classList.add('theme-cell'); // Initial theme changed to cell
     updateNavigationLabels();
     updateUI();
 });
+
+function applyColorScheme() {
+    const isDarkMode = colorSchemePreference === 'dark' || (colorSchemePreference === 'auto' && darkModeMediaQuery.matches);
+    document.body.classList.toggle('dark-mode', isDarkMode);
+    if (themeToggleIcon) {
+        themeToggleIcon.textContent = colorSchemePreference === 'auto'
+            ? 'contrast'
+            : (isDarkMode ? 'dark_mode' : 'light_mode');
+    }
+    const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    if (themeToggleBtn) {
+        themeToggleBtn.title = colorSchemePreference === 'auto'
+            ? 'Use system theme'
+            : (isDarkMode ? 'Disable dark mode' : 'Disable light mode');
+        themeToggleBtn.setAttribute('aria-label', themeToggleBtn.title);
+    }
+}
+
+function toggleColorScheme() {
+    colorSchemePreference = colorSchemePreference === 'auto'
+        ? 'dark'
+        : colorSchemePreference === 'dark'
+            ? 'light'
+            : 'auto';
+    localStorage.setItem('grutergi_color_scheme', colorSchemePreference);
+    applyColorScheme();
+}
 
 function updateNavigationLabels() {
     const segCell = document.getElementById('seg-cell');
@@ -99,21 +139,33 @@ function updateNavigationLabels() {
         const displayName = cellName.trim() || "셀 출석";
         segCell.innerText = displayName;
     }
+
+    const toolbarTitle = document.getElementById('toolbar-title');
+    if (toolbarTitle && currentView === 'cell') {
+        if (cellName.trim()) {
+            toolbarTitle.innerText = `${cellName.trim()} 출석부`;
+        } else {
+            toolbarTitle.innerText = "셀 출석부";
+        }
+    }
 }
 
 function initScrollAutoHiding() {
     let lastScrollY = window.scrollY;
     const toolbar = document.querySelector('.toolbar');
+    const bottomNav = document.querySelector('.floating-nav-container');
 
     window.addEventListener('scroll', () => {
         const currentScrollY = window.scrollY;
+        const isScrollingDown = currentScrollY > lastScrollY;
+        const isAtTop = currentScrollY <= 5;
 
-        // ONLY show toolbar when at the absolute top
-        if (currentScrollY <= 5) {
+        if (isAtTop || !isScrollingDown) {
             toolbar.classList.remove('hidden');
+            if (bottomNav) bottomNav.classList.remove('hidden');
         } else {
-            // Hide toolbar as soon as we leave the top
             toolbar.classList.add('hidden');
+            if (bottomNav) bottomNav.classList.add('hidden');
         }
 
         lastScrollY = currentScrollY;
@@ -228,9 +280,9 @@ function switchView(view) {
         document.body.classList.add('theme-cell');
         document.getElementById('cell-view').classList.add('active');
         document.getElementById('seg-cell').classList.add('active');
-        toolbarTitle.innerText = "셀 출석부";
-        renderCellList();
+        updateNavigationLabels();
     }
+    updateUI();
 }
 
 function handleAutocomplete() {

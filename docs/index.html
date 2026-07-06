@@ -16,11 +16,16 @@
 <body>
 
     <div class="toolbar">
-        <div style="width: 40px;"></div> <!-- Spacer for balance -->
+        <div style="width: 40px;"></div> <!-- Left Spacer -->
         <h1 id="toolbar-title">셀 출석부</h1>
-        <button class="icon-btn" onclick="openSettings()" title="명단 설정">
-            <span class="material-symbols-rounded">menu</span>
-        </button>
+        <div class="toolbar-actions">
+            <button class="icon-btn" onclick="toggleColorScheme()" id="theme-toggle-btn" title="Toggle color scheme" aria-label="Toggle color scheme">
+                <span class="material-symbols-rounded" id="theme-toggle-icon">dark_mode</span>
+            </button>
+            <button class="icon-btn" onclick="openSettings()" title="명단 설정">
+                <span class="material-symbols-rounded">menu</span>
+            </button>
+        </div>
     </div>
 
     <div id="stump-view" class="view-container">
