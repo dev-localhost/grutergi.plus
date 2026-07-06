@@ -469,8 +469,10 @@ textarea {
 .modal-btns { display: flex; gap: 12px; margin-top: 16px; }
 .modal-btns button { flex: 1; padding: 14px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; }
 .btn-pink { background: var(--secondary-color); color: white; }
-.btn-blue { background: var(--current-theme-color); color: white; transition: background-color 0.3s; }
+.btn-blue { background: var(--primary-color); color: white; transition: background-color 0.3s; }
 .btn-blue:active { filter: brightness(0.9); }
+.btn-pink { background: var(--secondary-color); color: white; transition: background-color 0.3s; }
+.btn-pink:active { filter: brightness(0.9); }
 .btn-gray { background: #E5E5EA; color: var(--text-primary); }
 
 .material-symbols-rounded { font-size: 22px; vertical-align: middle; }
