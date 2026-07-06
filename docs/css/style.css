@@ -1,22 +1,30 @@
 :root {
-    --primary-color: #63479B; /* 포스터의 깊은 보라색 */
-    --secondary-color: #F1948A; /* 포스터 노을의 따뜻한 코랄색 */
-    --accent-color: #F9E79F; /* 십자가와 빛의 은은한 노란색 */
-    --bg-color: #F7F5FC; /* 매우 연한 보라빛이 도는 배경 */
+    --primary-color: #63479B; /* 그루터기 보라 */
+    --secondary-color: #F1948A; /* 셀 출석 코랄 */
+    --accent-color: #F9E79F;
+    --bg-color: #F7F5FC;
     --card-bg-color: #FFFFFF;
-    --text-primary: #2D1E5F; /* 진한 보라빛이 도는 텍스트 */
-    --text-secondary: #7E74A6; /* 연한 보라색 보조 텍스트 */
+    --text-primary: #2D1E5F;
+    --text-secondary: #7E74A6;
     --divider-color: #E2DDF0;
+    --current-theme-color: var(--primary-color);
+}
+
+body.theme-cell {
+    --current-theme-color: var(--secondary-color);
+    --bg-color: #FFF5F4;
+    --divider-color: #FCE6E4;
 }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background-color: var(--bg-color);
     margin: 0;
-    padding: 0;
+    padding: 64px 0 0 0; /* Toolbar height is approx 64px */
     color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
+    transition: background-color 0.3s;
 }
 
 .toolbar {
@@ -25,25 +33,29 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 0 0 1px var(--divider-color);
-    position: sticky;
+    box-shadow: 0 1px 0 var(--divider-color);
+    position: fixed;
     top: 0;
-    z-index: 100;
+    left: 0;
+    right: 0;
+    height: 64px;
+    box-sizing: border-box;
+    z-index: 1000;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s;
 }
 
-.toolbar-logo {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    object-fit: cover;
+.toolbar.hidden {
+    transform: translateY(-100%);
 }
 
 .toolbar h1 {
     margin: 0 8px;
     font-size: 17px;
-    font-weight: 600;
+    font-weight: 700;
     text-align: center;
     flex: 1;
+    color: var(--current-theme-color);
+    transition: color 0.3s;
 }
 
 .view-container {
@@ -53,47 +65,14 @@ body {
     display: block;
 }
 
-.tab-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background: var(--card-bg-color);
-    display: flex;
-    justify-content: space-around;
-    padding: 8px 0;
-    padding-bottom: env(safe-area-inset-bottom);
-    box-shadow: 0 -1px 0 var(--divider-color);
-    z-index: 1000;
-}
-
-.tab-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    color: var(--text-secondary);
-    text-decoration: none;
-    font-size: 11px;
-    font-weight: 500;
-    flex: 1;
-    cursor: pointer;
-}
-
-.tab-item.active {
-    color: var(--primary-color);
-}
-
-.tab-item .material-symbols-rounded {
-    font-size: 24px;
-    margin-bottom: 4px;
-}
+.tab-bar { display: none; }
 
 /* Cell Attendance Styles */
 .cell-member-list {
     background: var(--card-bg-color);
     border-radius: 12px;
     overflow: hidden;
-    margin-bottom: 80px;
+    margin-bottom: 24px;
 }
 
 .cell-member-item {
@@ -104,6 +83,11 @@ body {
     background: var(--card-bg-color);
     user-select: none;
     -webkit-user-select: none;
+    transition: background-color 0.2s;
+}
+
+.cell-member-item:last-child {
+    border-bottom: none;
 }
 
 .cell-member-item.dragging {
@@ -190,13 +174,13 @@ body {
 }
 
 .cell-check-btn.active .checkbox {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
+    background-color: var(--current-theme-color);
+    border-color: var(--current-theme-color);
     color: white;
 }
 
 .cell-check-btn.active .label {
-    color: var(--primary-color);
+    color: var(--current-theme-color);
     font-weight: bold;
 }
 
@@ -211,12 +195,13 @@ body {
 
 .icon-btn {
     background: none; border: none; font-size: 24px; cursor: pointer; padding: 8px;
-    color: var(--primary-color);
+    color: var(--current-theme-color);
     display: flex; align-items: center; justify-content: center;
     width: 40px; height: 40px;
+    transition: color 0.3s;
 }
 
-.container { padding: 16px; padding-bottom: 100px; }
+.container { padding: 16px; padding-bottom: 120px; }
 
 .date-container {
     margin-bottom: 20px;
@@ -238,37 +223,76 @@ body {
     opacity: 0.6;
 }
 
-.cell-name-container {
-    margin-bottom: 16px;
+/* Floating Pill Navigation */
+.floating-nav-container {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2000;
+    width: auto;
+    min-width: 200px;
 }
 
-#etCellName {
-    width: 100%;
-    border: none;
-    background: transparent;
-    font-size: 20px;
+.floating-nav-container .segmented-control {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 30px;
+    padding: 4px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    display: flex;
+    position: relative;
+}
+
+.floating-nav-container .segment {
+    padding: 10px 24px;
+    font-size: 14px;
     font-weight: 700;
-    padding: 0;
-    color: var(--text-primary);
-    outline: none;
+    color: var(--text-secondary);
+    z-index: 2;
+    transition: color 0.3s;
+    white-space: nowrap;
+    cursor: pointer;
 }
 
-#etCellName::placeholder {
-    color: var(--divider-color);
-    font-weight: 500;
+.floating-nav-container .segment.active {
+    color: var(--current-theme-color);
 }
 
+.floating-nav-container .slider {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: calc(50% - 4px);
+    height: calc(100% - 8px);
+    background: white;
+    border-radius: 26px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    z-index: 1;
+    transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+.floating-nav-container:has(#seg-stump.active) .slider {
+    transform: translateX(100%);
+}
 .search-container { position: relative; margin-bottom: 24px; }
 
 input[type="text"] {
     width: 100%;
     padding: 12px 16px;
-    border-radius: 10px;
+    border-radius: 12px;
     border: 1px solid var(--divider-color);
     background: var(--card-bg-color);
     font-size: 16px;
     outline: none;
     box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+input[type="text"]:focus {
+    border-color: var(--current-theme-color);
 }
 
 .suggestion-box {
@@ -353,7 +377,8 @@ input[type="text"] {
 }
 
 .btn-share {
-    background: var(--primary-color);
+    background: var(--current-theme-color);
+    transition: background-color 0.3s;
 }
 
 .btn-reset {
@@ -422,7 +447,8 @@ textarea {
 
 .btn-main {
     width: 100%; padding: 15px; border-radius: 12px; border: none;
-    font-weight: 600; font-size: 16px; cursor: pointer; background: var(--primary-color); color: white;
+    font-weight: 600; font-size: 16px; cursor: pointer; background: var(--current-theme-color); color: white;
+    transition: background-color 0.3s;
 }
 
 .btn-danger-outline {
@@ -443,8 +469,8 @@ textarea {
 .modal-btns { display: flex; gap: 12px; margin-top: 16px; }
 .modal-btns button { flex: 1; padding: 14px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; }
 .btn-pink { background: var(--secondary-color); color: white; }
-.btn-blue { background: var(--primary-color); color: white; }
-.btn-blue:active { background: #523982; }
+.btn-blue { background: var(--current-theme-color); color: white; transition: background-color 0.3s; }
+.btn-blue:active { filter: brightness(0.9); }
 .btn-gray { background: #E5E5EA; color: var(--text-primary); }
 
 .material-symbols-rounded { font-size: 22px; vertical-align: middle; }
@@ -457,3 +483,116 @@ textarea {
     opacity: 0; transition: opacity 0.3s; pointer-events: none;
 }
 .toast.show { opacity: 1; }
+
+.cell-name-container {
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#etCellName {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 20px;
+    font-weight: 700;
+    padding: 0;
+    color: var(--text-primary);
+    outline: none;
+}
+
+#etCellName::placeholder {
+    color: var(--divider-color);
+    font-weight: 500;
+}
+
+.cell-member-list {
+    background: var(--card-bg-color);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+
+.cell-member-item {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid var(--divider-color);
+    background: var(--card-bg-color);
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background-color 0.2s;
+}
+
+.cell-member-item:last-child {
+    border-bottom: none;
+}
+
+.btn-add-member {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: 2px dashed var(--divider-color);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+    margin-bottom: 80px;
+}
+
+.btn-add-member:hover {
+    background: var(--card-bg-color);
+    border-color: var(--current-theme-color);
+    color: var(--current-theme-color);
+}
+
+.cell-add-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 8px;
+    background: white;
+    border: 1px solid var(--divider-color);
+}
+
+.cell-add-list-item .info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cell-add-list-item .name {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.cell-add-list-item .btn-add {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: none;
+    background: var(--current-theme-color);
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.cell-add-list-item.added {
+    opacity: 0.5;
+}
+
+.cell-add-list-item.added .btn-add {
+    background: #E5E5EA;
+    color: var(--text-secondary);
+    cursor: default;
+}

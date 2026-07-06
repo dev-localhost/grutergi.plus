@@ -13,14 +13,14 @@ let selectedDate = new Date().toISOString().split('T')[0];
 
 let pendingNames = []; // 일괄 추가를 위한 배열
 let isAutoAttend = false; // 검색을 통한 추가인지 여부
-let currentView = 'stump';
-let currentAddContext = 'stump';
+let currentView = 'cell';
+let currentAddContext = 'cell';
 
 const etSearch = document.getElementById('etSearch');
-const etCellSearch = document.getElementById('etCellSearch');
+const etCellAddSearch = document.getElementById('etCellAddSearch');
 const etCellName = document.getElementById('etCellName');
 const suggestionBox = document.getElementById('suggestion-box');
-const cellSuggestionBox = document.getElementById('cell-suggestion-box');
+const cellAddMemberList = document.getElementById('cellAddMemberList');
 const settingsSideView = document.getElementById('settingsSideView');
 
 // 초기화
@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
         etCellName.addEventListener('input', () => {
             cellName = etCellName.value;
             saveData();
+            updateNavigationLabels();
         });
     }
 
@@ -75,28 +76,49 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (etCellSearch) {
-        etCellSearch.addEventListener('input', handleCellAutocomplete);
-        etCellSearch.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                handleCellSearch();
-                hideCellSuggestions();
-            }
-        });
+    if (etCellAddSearch) {
+        etCellAddSearch.addEventListener('input', handleCellAddSearch);
     }
 
     document.addEventListener('click', (e) => {
         if (etSearch && !etSearch.contains(e.target)) {
             hideSuggestions();
         }
-        if (etCellSearch && !etCellSearch.contains(e.target)) {
-            hideCellSuggestions();
-        }
     });
 
     initDraggableFab();
+    initScrollAutoHiding();
+    document.body.classList.add('theme-cell'); // Initial theme changed to cell
+    updateNavigationLabels();
     updateUI();
 });
+
+function updateNavigationLabels() {
+    const segCell = document.getElementById('seg-cell');
+    if (segCell) {
+        const displayName = cellName.trim() || "셀 출석";
+        segCell.innerText = displayName;
+    }
+}
+
+function initScrollAutoHiding() {
+    let lastScrollY = window.scrollY;
+    const toolbar = document.querySelector('.toolbar');
+
+    window.addEventListener('scroll', () => {
+        const currentScrollY = window.scrollY;
+
+        // ONLY show toolbar when at the absolute top
+        if (currentScrollY <= 5) {
+            toolbar.classList.remove('hidden');
+        } else {
+            // Hide toolbar as soon as we leave the top
+            toolbar.classList.add('hidden');
+        }
+
+        lastScrollY = currentScrollY;
+    });
+}
 
 function initDraggableFab() {
     const fabContainers = document.querySelectorAll('.fab-container');
@@ -191,17 +213,21 @@ function initDraggableFab() {
 function switchView(view) {
     currentView = view;
     document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
-    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.segment').forEach(s => s.classList.remove('active'));
 
     const toolbarTitle = document.getElementById('toolbar-title');
 
     if (view === 'stump') {
+        document.body.classList.remove('theme-cell');
+        document.body.classList.add('theme-stump');
         document.getElementById('stump-view').classList.add('active');
-        document.getElementById('tab-stump').classList.add('active');
+        document.getElementById('seg-stump').classList.add('active');
         toolbarTitle.innerText = "그루터기 출석부";
     } else {
+        document.body.classList.remove('theme-stump');
+        document.body.classList.add('theme-cell');
         document.getElementById('cell-view').classList.add('active');
-        document.getElementById('tab-cell').classList.add('active');
+        document.getElementById('seg-cell').classList.add('active');
         toolbarTitle.innerText = "셀 출석부";
         renderCellList();
     }
@@ -274,6 +300,7 @@ function handleSearch() {
         } else {
             pendingNames = [query];
             isAutoAttend = true;
+            currentAddContext = 'stump'; // 검색 추가 시 컨텍스트 명시
             showAddDialog(`'${query}' 신규 등록`, "명단에 없는 이름입니다. 성별을 선택해주세요.");
         }
     }
@@ -303,6 +330,7 @@ function showConfirmDialog(title, body, onConfirm) {
 }
 
 function openSettings() {
+    currentAddContext = 'stump'; // 명단 관리 모드로 컨텍스트 설정
     renderSettingsList();
     settingsSideView.classList.add('open');
 }
@@ -312,11 +340,14 @@ function closeSideView() {
 }
 
 function closeModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'none';
+
     if (modalId === 'addMemberModal') {
-        etSearch.value = "";
+        if (etSearch) etSearch.value = "";
         pendingNames = [];
         isAutoAttend = false;
+        currentAddContext = 'cell'; // 기본 컨텍스트를 셀로 유지하거나 상황에 맞게 조정
     }
 }
 
@@ -330,12 +361,14 @@ function startBatchAdd() {
     if (pendingNames.length === 0) return;
 
     isAutoAttend = false;
+    currentAddContext = 'stump'; // 일괄 추가 시 컨텍스트 명시
     showAddDialog("성별 선택", `${pendingNames.length}명의 인원을 추가합니다. 성별을 선택해주세요.`);
 }
 
 function processAddMember(isMale) {
     let addedCount = 0;
     pendingNames.forEach(name => {
+        // 1. 전체 마스터 명단(그루터기)에 추가
         if (!members.some(m => m.name === name && m.isMale === isMale)) {
             const newMember = {
                 id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
@@ -343,34 +376,56 @@ function processAddMember(isMale) {
                 isMale: isMale
             };
             members.push(newMember);
-            if (isAutoAttend) {
+
+            // 그루터기 탭에서 검색을 통해 추가한 경우에만 출석 체크
+            if (isAutoAttend && currentAddContext === 'stump') {
                 attendance.add(newMember.id);
             }
+
+            // 셀 탭에서 '새 인원으로 추가'를 누른 경우에만 셀 명단에 추가
             if (currentAddContext === 'cell') {
                 if (!cellActiveMemberIds.includes(newMember.id)) {
                     cellActiveMemberIds.push(newMember.id);
                 }
             }
             addedCount++;
+        } else {
+            // 2. 이미 마스터 명단에 있는 경우
+            const existingMember = members.find(m => m.name === name && m.isMale === isMale);
+            if (existingMember) {
+                // 셀 탭에서 추가 중이었다면 셀 명단에만 추가 (전체 명단은 이미 있으므로)
+                if (currentAddContext === 'cell') {
+                    if (!cellActiveMemberIds.includes(existingMember.id)) {
+                        cellActiveMemberIds.push(existingMember.id);
+                        addedCount++;
+                    }
+                }
+                // 그루터기 탭에서 검색 중이었다면 출석 체크만 수행
+                else if (isAutoAttend && currentAddContext === 'stump') {
+                    attendance.add(existingMember.id);
+                    addedCount++;
+                }
+            }
         }
     });
 
     saveData();
     updateUI();
 
-    if (!isAutoAttend && currentAddContext !== 'cell') {
-        document.getElementById('etSettingsAddNames').value = "";
+    // 입력 필드 초기화
+    if (currentAddContext === 'stump') {
+        const textarea = document.getElementById('etSettingsAddNames');
+        if (textarea) textarea.value = "";
+        if (etSearch) etSearch.value = "";
         renderSettingsList();
-    }
-
-    if (currentAddContext === 'cell') {
-        etCellSearch.value = "";
+    } else if (currentAddContext === 'cell') {
+        if (etCellAddSearch) etCellAddSearch.value = "";
     }
 
     closeModal('addMemberModal');
-    currentAddContext = 'stump'; // reset context
+
     if (addedCount > 0 && !isAutoAttend) {
-        showToast(`${addedCount}명이 명단에 추가되었습니다.`);
+        showToast(`${addedCount}명이 추가되었습니다.`);
     }
 }
 
@@ -477,105 +532,15 @@ function updateStumpUI() {
     document.getElementById('tvFemaleCount').innerText = femaleCount;
 }
 
-function handleCellAutocomplete() {
-    const query = etCellSearch.value.trim();
-    if (!query) {
-        hideCellSuggestions();
-        renderCellList();
-        return;
-    }
-
-    const matchingMembers = members.filter(m =>
-        !cellActiveMemberIds.includes(m.id) &&
-        (m.name.toLowerCase().includes(query.toLowerCase()) || getChosung(m.name).includes(query.toLowerCase()))
-    );
-
-    if (matchingMembers.length > 0) {
-        showCellSuggestions(matchingMembers);
-    } else {
-        hideCellSuggestions();
-    }
-    renderCellList();
-}
-
-function showCellSuggestions(suggestions) {
-    if (!cellSuggestionBox) return;
-    cellSuggestionBox.innerHTML = '';
-    suggestions.forEach(member => {
-        const item = document.createElement('div');
-        item.className = 'suggestion-item';
-        item.innerHTML = `
-            <div class="suggest-info">
-                <div class="gender-dot ${member.isMale ? 'male' : 'female'}"></div>
-                <span>${member.name}</span>
-            </div>
-        `;
-        item.onclick = () => selectCellSuggestion(member.id);
-        cellSuggestionBox.appendChild(item);
-    });
-    cellSuggestionBox.style.display = 'block';
-}
-
-function hideCellSuggestions() {
-    if (cellSuggestionBox) cellSuggestionBox.style.display = 'none';
-}
-
-function selectCellSuggestion(id) {
-    if (!cellActiveMemberIds.includes(id)) {
-        cellActiveMemberIds.push(id);
-    }
-    saveData();
-    etCellSearch.value = '';
-    hideCellSuggestions();
-    renderCellList();
-}
-
-function handleCellSearch() {
-    const query = etCellSearch.value.trim();
-    if (!query) return;
-
-    const matchingMembers = members.filter(m =>
-        m.name.includes(query) || getChosung(m.name).includes(query)
-    );
-
-    const notActive = matchingMembers.filter(m => !cellActiveMemberIds.includes(m.id));
-
-    if (notActive.length === 1) {
-        selectCellSuggestion(notActive[0].id);
-    } else if (notActive.length > 1) {
-        showCellSuggestions(notActive);
-    } else {
-        if (matchingMembers.length > 0) {
-            showToast("이미 목록에 있는 이름입니다.");
-            etCellSearch.value = "";
-        } else {
-            pendingNames = [query];
-            isAutoAttend = false;
-            currentAddContext = 'cell';
-            showAddDialog(`'${query}' 신규 등록`, "명단에 없는 이름입니다. 성별을 선택해주세요.");
-        }
-    }
-}
-
 function renderCellList() {
     const listContainer = document.getElementById('cellMemberList');
     const statsCard = document.getElementById('cellStatsCard');
     if (!listContainer || !statsCard) return;
 
-    const query = etCellSearch.value.trim();
-
     // activeMembers mapping
     const activeMembers = cellActiveMemberIds
         .map(id => members.find(m => m.id === id))
         .filter(m => m); // remove nulls if member deleted from settings
-
-    const filteredMembers = activeMembers
-        .filter(m => {
-            const name = m.name.toLowerCase();
-            const chosung = getChosung(name);
-            const lowerQuery = query.toLowerCase();
-            return name.includes(lowerQuery) || chosung.includes(lowerQuery);
-        });
 
     listContainer.innerHTML = '';
 
@@ -584,7 +549,7 @@ function renderCellList() {
     let wednesdayCount = 0;
     let fridayCount = 0;
 
-    filteredMembers.forEach((member, index) => {
+    activeMembers.forEach((member, index) => {
         const data = cellAttendance[member.id] || { attendance: false, pbs: false, wednesday: false, friday: false };
         if (data.attendance) attendanceCount++;
         if (data.pbs) pbsCount++;
@@ -640,7 +605,7 @@ function renderCellList() {
             </button>
         `;
 
-        // Desktop Drag events (remain for mouse users)
+        // Desktop Drag events
         item.addEventListener('dragstart', handleDragStart);
         item.addEventListener('dragover', handleDragOver);
         item.addEventListener('drop', handleDrop);
@@ -659,7 +624,7 @@ function renderCellList() {
     // Update Stats Card Dynamically
     let statsHtml = `
         <div class="stat-item">
-            <span class="count total-count">${filteredMembers.length}</span>
+            <span class="count total-count">${activeMembers.length}</span>
             <span class="label">전체</span>
         </div>
     `;
@@ -697,6 +662,84 @@ function renderCellList() {
         `;
     }
     statsCard.innerHTML = statsHtml;
+}
+
+function openAddMemberModal() {
+    if (etCellAddSearch) etCellAddSearch.value = '';
+    renderCellAddList();
+    document.getElementById('cellAddMemberModal').style.display = 'flex';
+    if (etCellAddSearch) etCellAddSearch.focus();
+}
+
+function handleCellAddSearch() {
+    renderCellAddList();
+}
+
+function renderCellAddList() {
+    if (!cellAddMemberList) return;
+
+    const query = etCellAddSearch ? etCellAddSearch.value.trim().toLowerCase() : "";
+
+    // Sort all members by name
+    const sortedMembers = [...members].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+
+    const filteredMembers = sortedMembers.filter(m => {
+        if (!query) return true;
+        const name = m.name.toLowerCase();
+        const chosung = getChosung(name);
+        return name.includes(query) || chosung.includes(query);
+    });
+
+    cellAddMemberList.innerHTML = '';
+
+    if (filteredMembers.length === 0 && query) {
+        // Option to add new member directly
+        const emptyDiv = document.createElement('div');
+        emptyDiv.style.textAlign = 'center';
+        emptyDiv.style.padding = '20px';
+        emptyDiv.innerHTML = `
+            <div style="color: #666; margin-bottom: 12px;">'${query}' 이름의 인원이 없습니다.</div>
+            <button class="btn-blue" onclick="addNewMemberFromCell('${query}')">새 인원으로 추가</button>
+        `;
+        cellAddMemberList.appendChild(emptyDiv);
+        return;
+    }
+
+    filteredMembers.forEach(member => {
+        const isAdded = cellActiveMemberIds.includes(member.id);
+        const item = document.createElement('div');
+        item.className = `cell-add-list-item ${isAdded ? 'added' : ''}`;
+
+        item.innerHTML = `
+            <div class="info">
+                <div class="gender-dot ${member.isMale ? 'male' : 'female'}"></div>
+                <span class="name">${member.name}</span>
+            </div>
+            <button class="btn-add" onclick="${isAdded ? '' : `addMemberToCell('${member.id}')`}" ${isAdded ? 'disabled' : ''}>
+                ${isAdded ? '추가됨' : '추가'}
+            </button>
+        `;
+        cellAddMemberList.appendChild(item);
+    });
+}
+
+function addMemberToCell(id) {
+    if (!cellActiveMemberIds.includes(id)) {
+        cellActiveMemberIds.push(id);
+        saveData();
+        renderCellList();
+        renderCellAddList();
+        showToast("추가되었습니다.");
+    }
+}
+
+function addNewMemberFromCell(name) {
+    pendingNames = [name];
+    isAutoAttend = false;
+    currentAddContext = 'cell';
+    // Close search modal first to show gender modal
+    closeModal('cellAddMemberModal');
+    showAddDialog(`'${name}' 신규 등록`, "명단에 없는 이름입니다. 성별을 선택해주세요.");
 }
 
 let dragSrcEl = null;
