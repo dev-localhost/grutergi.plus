@@ -713,7 +713,7 @@ function renderCellAddList() {
         item.innerHTML = `
             <div class="info">
                 <div class="gender-dot ${member.isMale ? 'male' : 'female'}"></div>
-                <span class="name">${member.name}</span>
+                <span class="name" style="color: ${member.isMale ? 'var(--primary-color)' : 'var(--secondary-color)'}">${member.name}</span>
             </div>
             <button class="btn-add" onclick="${isAdded ? '' : `addMemberToCell('${member.id}')`}" ${isAdded ? 'disabled' : ''}>
                 ${isAdded ? '추가됨' : '추가'}
